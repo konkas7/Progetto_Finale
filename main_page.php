@@ -21,13 +21,18 @@ if ($conn->connect_error) {
 // Gestione della selezione della tabella
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $selectedTable = $_POST['selected_table'];
+    $filterKeyword = $_POST['filter_keyword'];
 } else {
-    // Default: mostra la prima tabella
+    // Default: mostra la prima tabella e nessun filtro
     $selectedTable = 'circuiti';
+    $filterKeyword = '';
 }
 
-// Esegui la query per ottenere i dati dalla tabella selezionata
-$query = "SELECT * FROM $selectedTable;";
+// Esegui la query per ottenere i dati dalla tabella selezionata con filtro
+$query = "SELECT * FROM $selectedTable WHERE CONCAT_WS('',";
+$query .= implode(", ", array_map(function($column) { return "COALESCE($column, '')"; }, getColumns($selectedTable)));
+$query .= ") LIKE '%$filterKeyword%';";
+
 $result = $conn->query($query);
 
 // Esegui la query per ottenere la lista di tutte le tabelle nel database (escludendo 'utenti')
@@ -42,6 +47,20 @@ if ($showTablesResult->num_rows > 0) {
     }
 }
 
+function getColumns($table) {
+    global $conn;
+    $columns = array();
+
+    $result = $conn->query("SHOW COLUMNS FROM $table;");
+
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $columns[] = $row['Field'];
+        }
+    }
+
+    return $columns;
+}
 ?>
 
 <!DOCTYPE html>
@@ -64,6 +83,10 @@ if ($showTablesResult->num_rows > 0) {
             }
             ?>
         </select>
+
+        <label for="filter_keyword">Filtro:</label>
+        <input type="text" name="filter_keyword" value="<?php echo $filterKeyword; ?>">
+
         <input type="submit" value="Seleziona">
     </form>
 
@@ -74,9 +97,9 @@ if ($showTablesResult->num_rows > 0) {
                 <tr>";
 
         // Ottieni i nomi delle colonne
-        $columns = $result->fetch_fields();
+        $columns = getColumns($selectedTable);
         foreach ($columns as $column) {
-            echo "<th>" . $column->name . "</th>";
+            echo "<th>" . $column . "</th>";
         }
 
         echo "</tr>";
