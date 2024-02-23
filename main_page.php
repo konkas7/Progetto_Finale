@@ -61,6 +61,26 @@ function getColumns($table) {
 
     return $columns;
 }
+
+// Gestione dell'inserimento di una nuova riga
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['insert_row'])) {
+    $insertValues = $_POST['insert_values'];
+    
+    // Pulisci i valori inseriti
+    $cleanInsertValues = array_map(function($value) use ($conn) {
+        return "'" . $conn->real_escape_string($value) . "'";
+    }, $insertValues);
+    
+    // Esegui la query per l'inserimento dei nuovi dati
+    $insertQuery = "INSERT INTO $selectedTable (" . implode(", ", getColumns($selectedTable)) . ") VALUES (" . implode(", ", $cleanInsertValues) . ");";
+    $insertResult = $conn->query($insertQuery);
+    
+    if ($insertResult) {
+        echo "Nuova riga inserita con successo.";
+    } else {
+        echo "Errore nell'inserimento della nuova riga: " . $conn->error;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -118,6 +138,19 @@ function getColumns($table) {
         echo "Nessun risultato trovato per la tabella $selectedTable.";
     }
     ?>
+
+    <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
+        <h3>Inserisci nuova riga:</h3>
+        <?php
+        // Genera campi di input per i valori delle colonne
+        foreach ($columns as $column) {
+            echo "<label for='insert_values[$column]'>$column:</label>";
+            echo "<input type='text' name='insert_values[$column]'>";
+        }
+        ?>
+        <input type="hidden" name="selected_table" value="<?php echo $selectedTable; ?>">
+        <input type="submit" name="insert_row" value="Inserisci">
+    </form>
 
     <a href="login.html">Logout</a>
 </body>
