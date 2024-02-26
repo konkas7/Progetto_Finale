@@ -22,6 +22,9 @@ if ($conn->connect_error) {
 $selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
 $filterKeyword = '';
 
+// Inizializza $columns come un array vuoto
+$columns = array();
+
 // Inizializza $editRow come un array vuoto
 $editRow = array();
 
@@ -69,20 +72,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['edit_row'])) {
         $editRow = json_decode($_POST['edit_row'], true);
 
-        // Visualizza il form di modifica
-        echo "<form method='post' action='{$_SERVER['PHP_SELF']}'>";
-        echo "<input type='hidden' name='selected_table' value='$selectedTable'>";
+        // Ottieni colonne dalla tabella selezionata
+        $columns = getColumns($selectedTable);
 
-        foreach ($editRow as $column => $value) {
-            echo "<label for='$column'>$column:</label>";
-            echo "<input type='text' name='$column' value='$value'>";
+        // Verifica se $columns è un array prima di utilizzarlo con foreach
+        if (is_array($columns) && count($columns) > 0) {
+            // Visualizza il form di modifica
+            echo "<form method='post' action='{$_SERVER['PHP_SELF']}'>";
+            echo "<input type='hidden' name='selected_table' value='$selectedTable'>";
+
+            foreach ($columns as $column) {
+                $value = isset($editRow[$column]) ? $editRow[$column] : '';
+                echo "<label for='$column'>$column:</label>";
+                echo "<input type='text' name='$column' value='$value'>";
+            }
+
+            // Aggiungi campo nascosto per trasmettere l'informazione sulla riga da modificare
+            echo "<input type='hidden' name='edit_row_info' value='" . htmlentities(json_encode($editRow)) . "'>";
+
+            // Aggiungi campo nascosto per mantenere l'informazione sulla tabella selezionata
+            echo "<input type='hidden' name='selected_table_for_edit' value='$selectedTable'>";
+
+            echo "<input type='submit' name='update_data' value='Aggiorna'>";
+            echo "</form>";
+        } else {
+            // Gestisci il caso in cui $columns non è un array valido
+            echo "Errore: Impossibile ottenere le colonne dalla tabella $selectedTable.";
         }
-
-        // Aggiungi campo nascosto per trasmettere l'informazione sulla riga da modificare
-        echo "<input type='hidden' name='edit_row_info' value='" . htmlentities(json_encode($editRow)) . "'>";
-
-        echo "<input type='submit' name='update_data' value='Aggiorna'>";
-        echo "</form>";
     }
 
     // Aggiornamento riga
@@ -141,7 +157,7 @@ function getColumns($table)
 
     $result = $conn->query("SHOW COLUMNS FROM $table;");
 
-    if ($result->num_rows > 0) {
+    if ($result && $result->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
             $columns[] = $row['Field'];
         }
@@ -193,7 +209,7 @@ function getColumns($table)
                 echo "<th>" . $column . "</th>";
             }
 
-            // Aggiungi colonne per i pulsanti "Modifica" e "Elimina"
+            // Aggiungi una colonna per il pulsante "Elimina"
             echo "<th>Azioni</th>";
 
             echo "</tr>";
@@ -205,18 +221,17 @@ function getColumns($table)
                     echo "<td>$value</td>";
                 }
 
-                // Aggiungi il pulsante "Modifica"
-                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}'>
-                            <input type='hidden' name='selected_table' value='$selectedTable'>
-                            <input type='hidden' name='edit_row' value='" . htmlentities(json_encode($row)) . "'>
-                            <input type='submit' value='Modifica'>
-                          </form></td>";
-
                 // Aggiungi il pulsante "Elimina"
                 echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
-                            <input type='hidden' name='selected_table' value='$selectedTable'>
+                            <input type='hidden' name='table' value='$selectedTable'>
                             <input type='hidden' name='delete_row' value='" . htmlentities(json_encode($row)) . "'>
                             <input type='submit' value='Elimina'>
+                          </form></td>";
+
+                // Aggiungi il pulsante "Modifica"
+                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}'>
+                            <input type='hidden' name='edit_row' value='" . htmlentities(json_encode($row)) . "'>
+                            <input type='submit' value='Modifica'>
                           </form></td>";
 
                 echo "</tr>";
