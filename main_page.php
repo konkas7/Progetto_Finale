@@ -44,6 +44,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $insertQuery = "INSERT INTO $selectedTable (" . implode(', ', $columns) . ") VALUES ('" . implode("', '", $values) . "');";
         $conn->query($insertQuery);
+
+        // Aggiorna la variabile $selectedTable dopo l'inserimento
+        $selectedTable = $_POST['selected_table'];
     }
 
     // Eliminazione riga
@@ -179,6 +182,7 @@ function getColumns($table)
                 echo "<label for=\"$column\">$column:</label>";
                 echo "<input type=\"text\" name=\"$column\">";
             }
+            echo "<input type=\"hidden\" name=\"selected_table\" value=\"$selectedTable\">";
             echo "<input type=\"submit\" name=\"insert_data\" value=\"Inserisci\">";
         }
         ?>
