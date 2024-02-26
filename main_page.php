@@ -19,7 +19,7 @@ if ($conn->connect_error) {
 }
 
 // Default: mostra la prima tabella e nessun filtro
-$selectedTable = 'circuiti';
+$selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
 $filterKeyword = '';
 
 // Ottieni colonne
@@ -154,7 +154,7 @@ function getColumns($table)
 
                 // Aggiungi il pulsante "Elimina"
                 echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
-                            <input type='hidden' name='table' value='$selectedTable'>
+                            <input type='hidden' name='selected_table' value='$selectedTable'>
                             <input type='hidden' name='delete_row' value='" . htmlentities(json_encode($row)) . "'>
                             <input type='submit' value='Elimina'>
                           </form></td>";
