@@ -18,14 +18,23 @@ if ($conn->connect_error) {
     die("Connessione fallita: " . $conn->connect_error);
 }
 
+// Default: mostra la prima tabella e nessun filtro
+$selectedTable = 'circuiti';
+$filterKeyword = '';
+
+// Ottieni colonne
+$columns = getColumns($selectedTable);
+
 // Gestione della selezione della tabella
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
     $filterKeyword = isset($_POST['filter_keyword']) ? $_POST['filter_keyword'] : '';
 
+    // Ottieni colonne dalla tabella selezionata
+    $columns = getColumns($selectedTable);
+
     // Inserimento dati nella tabella
     if (isset($_POST['insert_data'])) {
-        $columns = getColumns($selectedTable);
         $values = array();
 
         foreach ($columns as $column) {
@@ -36,17 +45,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $insertQuery = "INSERT INTO $selectedTable (" . implode(', ', $columns) . ") VALUES ('" . implode("', '", $values) . "');";
         $conn->query($insertQuery);
     }
-} else {
-    // Default: mostra la prima tabella e nessun filtro
-    $selectedTable = 'circuiti';
-    $filterKeyword = '';
+
+    // Eliminazione riga
+    if (isset($_POST['delete_row'])) {
+        $deleteRow = json_decode($_POST['delete_row'], true);
+
+        $whereClause = array();
+        foreach ($deleteRow as $column => $value) {
+            $whereClause[] = "$column = '$value'";
+        }
+
+        $deleteQuery = "DELETE FROM $selectedTable WHERE " . implode(' AND ', $whereClause);
+        $conn->query($deleteQuery);
+    }
 }
 
 // Esegui la query per ottenere i dati dalla tabella selezionata con filtro
 $query = "SELECT * FROM $selectedTable WHERE CONCAT_WS('',";
 $query .= implode(", ", array_map(function ($column) {
     return "COALESCE($column, '')";
-}, getColumns($selectedTable)));
+}, $columns));
 $query .= ") LIKE '%$filterKeyword%';";
 
 $result = $conn->query($query);
@@ -118,10 +136,12 @@ function getColumns($table)
                     <tr>";
 
             // Ottieni i nomi delle colonne
-            $columns = getColumns($selectedTable);
             foreach ($columns as $column) {
                 echo "<th>" . $column . "</th>";
             }
+
+            // Aggiungi una colonna per il pulsante "Elimina"
+            echo "<th>Azioni</th>";
 
             echo "</tr>";
 
@@ -131,6 +151,14 @@ function getColumns($table)
                 foreach ($row as $value) {
                     echo "<td>$value</td>";
                 }
+
+                // Aggiungi il pulsante "Elimina"
+                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
+                            <input type='hidden' name='table' value='$selectedTable'>
+                            <input type='hidden' name='delete_row' value='" . htmlentities(json_encode($row)) . "'>
+                            <input type='submit' value='Elimina'>
+                          </form></td>";
+
                 echo "</tr>";
             }
 
@@ -151,9 +179,9 @@ function getColumns($table)
                 echo "<label for=\"$column\">$column:</label>";
                 echo "<input type=\"text\" name=\"$column\">";
             }
+            echo "<input type=\"submit\" name=\"insert_data\" value=\"Inserisci\">";
         }
         ?>
-        <input type="submit" name="insert_data" value="Inserisci">
     </form>
 
     <a href="login.html">Logout</a>
