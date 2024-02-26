@@ -22,6 +22,9 @@ if ($conn->connect_error) {
 $selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
 $filterKeyword = '';
 
+// Inizializza $editRow come un array vuoto
+$editRow = array();
+
 // Ottieni colonne
 $columns = getColumns($selectedTable);
 
@@ -60,6 +63,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $deleteQuery = "DELETE FROM $selectedTable WHERE " . implode(' AND ', $whereClause);
         $conn->query($deleteQuery);
+    }
+
+    // Modifica riga
+    if (isset($_POST['edit_row'])) {
+        $editRow = json_decode($_POST['edit_row'], true);
+
+        // Visualizza il form di modifica
+        echo "<form method='post' action='{$_SERVER['PHP_SELF']}'>";
+        echo "<input type='hidden' name='selected_table' value='$selectedTable'>";
+
+        foreach ($editRow as $column => $value) {
+            echo "<label for='$column'>$column:</label>";
+            echo "<input type='text' name='$column' value='$value'>";
+        }
+
+        // Aggiungi campo nascosto per trasmettere l'informazione sulla riga da modificare
+        echo "<input type='hidden' name='edit_row_info' value='" . htmlentities(json_encode($editRow)) . "'>";
+
+        echo "<input type='submit' name='update_data' value='Aggiorna'>";
+        echo "</form>";
+    }
+
+    // Aggiornamento riga
+    if (isset($_POST['update_data'])) {
+        // Recupera le informazioni sulla riga da modificare
+        $editRow = json_decode($_POST['edit_row_info'], true);
+
+        $updateData = array();
+
+        foreach ($columns as $column) {
+            $updateData[$column] = isset($_POST[$column]) ? $_POST[$column] : '';
+        }
+
+        $updateQuery = "UPDATE $selectedTable SET ";
+        foreach ($updateData as $column => $value) {
+            $updateQuery .= "$column = '$value', ";
+        }
+        $updateQuery = rtrim($updateQuery, ', '); // Rimuovi l'ultima virgola
+        $updateQuery .= " WHERE ";
+
+        // Costruisci la clausola WHERE basata sui valori effettivi della riga
+        foreach ($editRow as $column => $value) {
+            $updateQuery .= "$column = '$value' AND ";
+        }
+        $updateQuery = rtrim($updateQuery, 'AND '); // Rimuovi l'ultima clausola AND
+
+        $conn->query($updateQuery);
     }
 }
 
@@ -143,7 +193,7 @@ function getColumns($table)
                 echo "<th>" . $column . "</th>";
             }
 
-            // Aggiungi una colonna per il pulsante "Elimina"
+            // Aggiungi colonne per i pulsanti "Modifica" e "Elimina"
             echo "<th>Azioni</th>";
 
             echo "</tr>";
@@ -154,6 +204,13 @@ function getColumns($table)
                 foreach ($row as $value) {
                     echo "<td>$value</td>";
                 }
+
+                // Aggiungi il pulsante "Modifica"
+                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}'>
+                            <input type='hidden' name='selected_table' value='$selectedTable'>
+                            <input type='hidden' name='edit_row' value='" . htmlentities(json_encode($row)) . "'>
+                            <input type='submit' value='Modifica'>
+                          </form></td>";
 
                 // Aggiungi il pulsante "Elimina"
                 echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
@@ -182,7 +239,6 @@ function getColumns($table)
                 echo "<label for=\"$column\">$column:</label>";
                 echo "<input type=\"text\" name=\"$column\">";
             }
-            echo "<input type=\"hidden\" name=\"selected_table\" value=\"$selectedTable\">";
             echo "<input type=\"submit\" name=\"insert_data\" value=\"Inserisci\">";
         }
         ?>
