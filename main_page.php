@@ -1,12 +1,10 @@
 <?php
-// Verifica la sessione utente per garantire l'accesso autorizzato
 session_start();
 if (!isset($_SESSION['username'])) {
     header("Location: login.html");
     exit();
 }
 
-// Connessione al database
 $servername = "localhost";
 $username = "programma";
 $password = "12345";
@@ -18,44 +16,33 @@ if ($conn->connect_error) {
     die("Connessione fallita: " . $conn->connect_error);
 }
 
-// Default: mostra la prima tabella e nessun filtro
 $selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
-$filterKeyword = '';
+$filterKeyword = isset($_POST['filter_keyword']) ? $_POST['filter_keyword'] : '';
 
-// Inizializza $columns come un array vuoto
 $columns = array();
-
-// Inizializza $editRow come un array vuoto
 $editRow = array();
 
-// Ottieni colonne
 $columns = getColumns($selectedTable);
 
-// Gestione della selezione della tabella
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $selectedTable = isset($_POST['selected_table']) ? $_POST['selected_table'] : 'circuiti';
     $filterKeyword = isset($_POST['filter_keyword']) ? $_POST['filter_keyword'] : '';
 
-    // Ottieni colonne dalla tabella selezionata
     $columns = getColumns($selectedTable);
 
-    // Inserimento dati nella tabella
     if (isset($_POST['insert_data'])) {
         $values = array();
 
         foreach ($columns as $column) {
-            // Verifica se l'indice è definito prima di utilizzarlo
             $values[] = isset($_POST[$column]) ? $_POST[$column] : '';
         }
 
         $insertQuery = "INSERT INTO $selectedTable (" . implode(', ', $columns) . ") VALUES ('" . implode("', '", $values) . "');";
         $conn->query($insertQuery);
 
-        // Aggiorna la variabile $selectedTable dopo l'inserimento
         $selectedTable = $_POST['selected_table'];
     }
 
-    // Eliminazione riga
     if (isset($_POST['delete_row'])) {
         $deleteRow = json_decode($_POST['delete_row'], true);
 
@@ -68,16 +55,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $conn->query($deleteQuery);
     }
 
-    // Modifica riga
     if (isset($_POST['edit_row'])) {
         $editRow = json_decode($_POST['edit_row'], true);
 
-        // Ottieni colonne dalla tabella selezionata
         $columns = getColumns($selectedTable);
 
-        // Verifica se $columns è un array prima di utilizzarlo con foreach
         if (is_array($columns) && count($columns) > 0) {
-            // Visualizza il form di modifica
             echo "<form method='post' action='{$_SERVER['PHP_SELF']}'>";
             echo "<input type='hidden' name='selected_table' value='$selectedTable'>";
 
@@ -87,23 +70,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 echo "<input type='text' name='$column' value='$value'>";
             }
 
-            // Aggiungi campo nascosto per trasmettere l'informazione sulla riga da modificare
             echo "<input type='hidden' name='edit_row_info' value='" . htmlentities(json_encode($editRow)) . "'>";
-
-            // Aggiungi campo nascosto per mantenere l'informazione sulla tabella selezionata
             echo "<input type='hidden' name='selected_table_for_edit' value='$selectedTable'>";
 
             echo "<input type='submit' name='update_data' value='Aggiorna'>";
             echo "</form>";
         } else {
-            // Gestisci il caso in cui $columns non è un array valido
             echo "Errore: Impossibile ottenere le colonne dalla tabella $selectedTable.";
         }
     }
 
-    // Aggiornamento riga
     if (isset($_POST['update_data'])) {
-        // Recupera le informazioni sulla riga da modificare
         $editRow = json_decode($_POST['edit_row_info'], true);
 
         $updateData = array();
@@ -116,20 +93,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         foreach ($updateData as $column => $value) {
             $updateQuery .= "$column = '$value', ";
         }
-        $updateQuery = rtrim($updateQuery, ', '); // Rimuovi l'ultima virgola
+        $updateQuery = rtrim($updateQuery, ', ');
         $updateQuery .= " WHERE ";
 
-        // Costruisci la clausola WHERE basata sui valori effettivi della riga
         foreach ($editRow as $column => $value) {
             $updateQuery .= "$column = '$value' AND ";
         }
-        $updateQuery = rtrim($updateQuery, 'AND '); // Rimuovi l'ultima clausola AND
+        $updateQuery = rtrim($updateQuery, 'AND ');
 
         $conn->query($updateQuery);
     }
 }
 
-// Esegui la query per ottenere i dati dalla tabella selezionata con filtro
 $query = "SELECT * FROM $selectedTable WHERE CONCAT_WS('',";
 $query .= implode(", ", array_map(function ($column) {
     return "COALESCE($column, '')";
@@ -138,7 +113,6 @@ $query .= ") LIKE '%$filterKeyword%';";
 
 $result = $conn->query($query);
 
-// Esegui la query per ottenere la lista di tutte le tabelle nel database (escludendo 'utenti')
 $showTablesQuery = "SHOW TABLES FROM $dbname WHERE Tables_in_$dbname NOT LIKE 'utenti';";
 $showTablesResult = $conn->query($showTablesQuery);
 
@@ -183,9 +157,12 @@ function getColumns($table)
         <label for="selected_table">Seleziona la tabella:</label>
         <select name="selected_table">
             <?php
-            // Genera le opzioni per tutte le tabelle nel database (escludendo 'utenti')
             foreach ($tables as $table) {
-                echo "<option value=\"$table\" " . ($selectedTable == $table ? 'selected' : '') . ">$table</option>";
+                echo "<option value=\"$table\"";
+                if ($selectedTable == $table) {
+                    echo " selected";
+                }
+                echo ">$table</option>";
             }
             ?>
         </select>
@@ -197,65 +174,53 @@ function getColumns($table)
     </form>
 
     <?php
-    // Verifica se $result è inizializzato prima di utilizzarlo
-    if (isset($result)) {
-        if ($result->num_rows > 0) {
-            // Visualizza i risultati in una tabella
-            echo "<table border='1'>
-                    <tr>";
+    if ($result && $result->num_rows > 0) {
+        echo "<table border='1'>
+                <tr>";
 
-            // Ottieni i nomi delle colonne
-            foreach ($columns as $column) {
-                echo "<th>" . $column . "</th>";
+        foreach ($columns as $column) {
+            echo "<th>" . $column . "</th>";
+        }
+
+        echo "<th>Azioni</th>";
+
+        echo "</tr>";
+
+        while ($row = $result->fetch_assoc()) {
+            echo "<tr>";
+            foreach ($row as $value) {
+                echo "<td>$value</td>";
             }
 
-            // Aggiungi una colonna per il pulsante "Elimina"
-            echo "<th>Azioni</th>";
+            echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
+                        <input type='hidden' name='selected_table' value='$selectedTable'>
+                        <input type='hidden' name='delete_row' value='" . htmlentities(json_encode($row)) . "'>
+                        <input type='submit' value='Elimina'>
+                      </form></td>";
+
+            echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}'>
+                        <input type='hidden' name='selected_table' value='$selectedTable'>
+                        <input type='hidden' name='edit_row' value='" . htmlentities(json_encode($row)) . "'>
+                        <input type='submit' value='Modifica'>
+                      </form></td>";
 
             echo "</tr>";
-
-            // Visualizza i dati della tabella
-            while ($row = $result->fetch_assoc()) {
-                echo "<tr>";
-                foreach ($row as $value) {
-                    echo "<td>$value</td>";
-                }
-
-                // Aggiungi il pulsante "Elimina"
-                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}' onsubmit='return confirm(\"Sei sicuro di voler eliminare questa riga?\")'>
-                            <input type='hidden' name='table' value='$selectedTable'>
-                            <input type='hidden' name='delete_row' value='" . htmlentities(json_encode($row)) . "'>
-                            <input type='submit' value='Elimina'>
-                          </form></td>";
-
-                // Aggiungi il pulsante "Modifica"
-                echo "<td><form method='post' action='{$_SERVER['PHP_SELF']}'>
-                            <input type='hidden' name='edit_row' value='" . htmlentities(json_encode($row)) . "'>
-                            <input type='submit' value='Modifica'>
-                          </form></td>";
-
-                echo "</tr>";
-            }
-
-            echo "</table>";
-        } else {
-            echo "Nessun risultato trovato per la tabella $selectedTable.";
         }
+
+        echo "</table>";
+    } else {
+        echo "Nessun risultato trovato per la tabella $selectedTable.";
     }
     ?>
 
     <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
         <h3>Inserisci nuova riga:</h3>
         <?php
-        // Verifica se $columns è inizializzato prima di utilizzarlo
-        if (isset($columns)) {
-            // Visualizza campi per l'inserimento dati
-            foreach ($columns as $column) {
-                echo "<label for=\"$column\">$column:</label>";
-                echo "<input type=\"text\" name=\"$column\">";
-            }
-            echo "<input type=\"submit\" name=\"insert_data\" value=\"Inserisci\">";
+        foreach ($columns as $column) {
+            echo "<label for=\"$column\">$column:</label>";
+            echo "<input type=\"text\" name=\"$column\">";
         }
+        echo "<input type=\"submit\" name=\"insert_data\" value=\"Inserisci\">";
         ?>
     </form>
 
