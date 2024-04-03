@@ -1,5 +1,4 @@
 <?php
-// Connessione al database e verifica credenziali
 $servername = "localhost";
 $username = "programma";
 $password = "12345";
@@ -19,7 +18,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $result = $conn->query($sql);
 
     if ($result->num_rows > 0) {
-        // Inizializza la sessione e reindirizza alla pagina principale
         session_start();
         $_SESSION['username'] = $username;
         header("Location: main_page.php");
