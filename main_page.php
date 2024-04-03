@@ -297,6 +297,7 @@ function getColumns($table)
     ?>
 
     <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
+        <input type="hidden" name="selected_table" value="<?php echo $selectedTable; ?>">
         <h3>Inserisci nuova riga:</h3>
         <?php
         foreach ($columns as $column) {
