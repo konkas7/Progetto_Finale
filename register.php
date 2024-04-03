@@ -36,14 +36,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $new_username = $_POST["new_username"];
     $new_password = $_POST["new_password"];
 
-    // Verifica se l'utente esiste già
     $check_user_sql = "SELECT * FROM utenti WHERE username='$new_username'";
     $check_user_result = $conn->query($check_user_sql);
 
     if ($check_user_result->num_rows > 0) {
         echo "Username già in uso, scegline un altro.";
     } else {
-        // Registra il nuovo utente
         $register_sql = "INSERT INTO utenti (username, password) VALUES ('$new_username', '$new_password')";
         if ($conn->query($register_sql) === TRUE) {
             echo "Registrazione avvenuta con successo.";
